@@ -1,8 +1,7 @@
-<!DOCTYPE html>
-<html lang="id">
+<!DOCTYPE html><html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Test QRIS YogaGateway</title>
+  <title>QRIS NDRAZYY</title>
   <style>
     body {
       font-family: Arial;
@@ -45,26 +44,21 @@
     }
   </style>
 </head>
-<body>
-
-<div class="box">
-  <h3>YogaGateway QRIS Test</h3>
-
-  <input id="apikey" placeholder="API KEY YogaGateway">
-  <input id="amount" type="number" placeholder="Nominal (contoh 1000)">
-
-  <button onclick="createQR()">Buat QRIS</button>
+<body><div class="box">
+  <h3>YogaGateway QRIS</h3>  <input id="apikey" placeholder="API KEY">
+  <input id="amount" type="number" placeholder="Nominal (contoh 1000)"><button onclick="createQR()">Buat QRIS</button>
 
   <div id="result" class="result"></div>
   <img id="qr" />
-</div>
+</div><script>
+let currentTrx = null;
+let intervalCheck = null;
 
-<script>
 async function createQR() {
   const apikey = document.getElementById("apikey").value;
   const amount = document.getElementById("amount").value;
 
-  document.getElementById("result").innerText = "Loading...";
+  document.getElementById("result").innerText = "⏳ Membuat QRIS...";
 
   try {
     const res = await fetch(
@@ -72,26 +66,76 @@ async function createQR() {
     );
 
     const data = await res.json();
-
     console.log(data);
 
-    if (!data || data.status !== "success") {
-      document.getElementById("result").innerText = "Gagal: " + JSON.stringify(data);
+    // ✅ FIX STATUS
+    if (!data || data.status !== true) {
+      document.getElementById("result").innerText =
+        "❌ Gagal: " + JSON.stringify(data);
       return;
     }
 
-    document.getElementById("result").innerText =
-      "TRX ID: " + data.data.trxid;
+    const trx = data.data;
+    currentTrx = trx.trx_id;
 
-    if (data.data.qr_image) {
-      document.getElementById("qr").src = data.data.qr_image;
+    document.getElementById("result").innerHTML = `
+      🆔 TRX: ${trx.trx_id}<br>
+      💰 Rp ${amount}<br>
+      ⏰ Expired: ${trx.expired_at}<br>
+      🔄 Menunggu pembayaran...
+    `;
+
+    document.getElementById("qr").src = trx.qr_image;
+
+    // 🔥 AUTO CEK STATUS TIAP 5 DETIK
+    if (intervalCheck) clearInterval(intervalCheck);
+
+    intervalCheck = setInterval(() => {
+      checkStatus(apikey);
+    }, 5000);
+
+  } catch (e) {
+    document.getElementById("result").innerText = "❌ Error: " + e.message;
+  }
+}
+
+async function checkStatus(apikey) {
+  if (!currentTrx) return;
+
+  try {
+    const res = await fetch(
+      `https://yogateway.id/api.php?action=checkstatus&apikey=${apikey}&trxid=${currentTrx}`
+    );
+
+    const data = await res.json();
+    console.log("STATUS:", data);
+
+    if (!data || !data.data) return;
+
+    const status = data.data.status;
+
+    if (status === "SUCCESS") {
+      clearInterval(intervalCheck);
+
+      document.getElementById("result").innerHTML = `
+        ✅ PEMBAYARAN BERHASIL<br>
+        🆔 ${currentTrx}
+      `;
+
+      alert("Pembayaran berhasil!");
+    }
+
+    if (status === "EXPIRED") {
+      clearInterval(intervalCheck);
+
+      document.getElementById("result").innerHTML = `
+        ❌ QRIS EXPIRED
+      `;
     }
 
   } catch (e) {
-    document.getElementById("result").innerText = "Error: " + e.message;
+    console.log(e);
   }
 }
-</script>
-
-</body>
-    </html>
+</script></body>
+</html>
