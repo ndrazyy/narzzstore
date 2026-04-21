@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="id">
+<!DOCTYPE html>
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <title>QRIS NDRAZYY</title>
@@ -44,19 +45,32 @@
     }
   </style>
 </head>
-<body><div class="box">
-  <h3>YogaGateway QRIS</h3>  <input id="apikey" placeholder="API KEY">
-  <input id="amount" type="number" placeholder="Nominal (contoh 1000)"><button onclick="createQR()">Buat QRIS</button>
+<body>
+
+<div class="box">
+  <h3>YogaGateway QRIS</h3>
+
+  <input id="apikey" placeholder="API KEY">
+  <input id="amount" type="number" placeholder="Nominal (contoh 1000)">
+
+  <button onclick="createQR()">Buat QRIS</button>
 
   <div id="result" class="result"></div>
   <img id="qr" />
-</div><script>
+</div>
+
+<script>
 let currentTrx = null;
 let intervalCheck = null;
 
 async function createQR() {
   const apikey = document.getElementById("apikey").value;
-  const amount = document.getElementById("amount").value;
+  const amount = Number(document.getElementById("amount").value);
+
+  if (!apikey || !amount) {
+    document.getElementById("result").innerText = "❌ APIKEY / NOMINAL kosong";
+    return;
+  }
 
   document.getElementById("result").innerText = "⏳ Membuat QRIS...";
 
@@ -68,8 +82,8 @@ async function createQR() {
     const data = await res.json();
     console.log(data);
 
-    // ✅ FIX STATUS
-    if (!data || data.status !== true) {
+    // FIX VALIDASI
+    if (!data || data.status !== true || !data.data) {
       document.getElementById("result").innerText =
         "❌ Gagal: " + JSON.stringify(data);
       return;
@@ -80,14 +94,14 @@ async function createQR() {
 
     document.getElementById("result").innerHTML = `
       🆔 TRX: ${trx.trx_id}<br>
-      💰 Rp ${amount}<br>
+      💰 Rp ${trx.amount}<br>
       ⏰ Expired: ${trx.expired_at}<br>
       🔄 Menunggu pembayaran...
     `;
 
     document.getElementById("qr").src = trx.qr_image;
 
-    // 🔥 AUTO CEK STATUS TIAP 5 DETIK
+    // reset interval
     if (intervalCheck) clearInterval(intervalCheck);
 
     intervalCheck = setInterval(() => {
@@ -95,7 +109,8 @@ async function createQR() {
     }, 5000);
 
   } catch (e) {
-    document.getElementById("result").innerText = "❌ Error: " + e.message;
+    document.getElementById("result").innerText =
+      "❌ Error: " + e.message;
   }
 }
 
@@ -110,7 +125,7 @@ async function checkStatus(apikey) {
     const data = await res.json();
     console.log("STATUS:", data);
 
-    if (!data || !data.data) return;
+    if (!data?.data) return;
 
     const status = data.data.status;
 
@@ -133,9 +148,17 @@ async function checkStatus(apikey) {
       `;
     }
 
+    if (status === "PENDING") {
+      document.getElementById("result").innerHTML = `
+        ⏳ MENUNGGU PEMBAYARAN...
+      `;
+    }
+
   } catch (e) {
     console.log(e);
   }
 }
-</script></body>
+</script>
+
+</body>
 </html>
