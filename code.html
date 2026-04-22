@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>QRIS NDRAZYY AUTO FIX</title>
+  <title>QRIS NDRAZYY PRO</title>
   <style>
     body {
       font-family: Arial;
@@ -48,14 +48,13 @@
 <body>
 
 <div class="box">
-  <h3>QRIS AUTO FIX</h3>
+  <h3>QRIS AUTO PRO</h3>
 
-  <input id="apikey" placeholder="API KEY">
   <input id="amount" type="number" placeholder="Nominal (contoh 1000)">
 
   <button onclick="createQR()">Buat QRIS</button>
 
-  <div id="result" class="result">⏳ Menunggu...</div>
+  <div id="result" class="result">⏳ Mengecek transaksi...</div>
   <img id="qr" />
 </div>
 
@@ -63,7 +62,9 @@
 let currentTrx = null;
 let intervalCheck = null;
 
-// 🔒 SESSION 1 USER 1 QR
+const APIKEY = "yo_sec_4c4963b6313094f34e1f4d6a472186de";
+
+// 🔒 SESSION USER
 function getSession() {
   let s = localStorage.getItem("qris_session");
   if (!s) {
@@ -73,39 +74,45 @@ function getSession() {
   return s;
 }
 
+// 📦 LOAD SAAT BUKA WEB
 window.onload = () => {
-  const saved = localStorage.getItem("qris_trx_" + getSession());
+  const session = getSession();
+  const saved = localStorage.getItem("qris_trx_" + session);
 
-  if (saved) {
-    const trx = JSON.parse(saved);
-
-    currentTrx = trx.trx_id;
-
-    document.getElementById("qr").src = trx.qr_image;
-
-    document.getElementById("result").innerHTML = `
-      ♻️ QRIS AKTIF (1 USER 1 QR)<br>
-      🆔 ${trx.trx_id}<br>
-      💰 Rp ${trx.amount}
-    `;
-
-    startCheck();
+  if (!saved) {
+    document.getElementById("result").innerHTML =
+      "⚠️ Belum ada transaksi aktif";
+    return;
   }
+
+  const trx = JSON.parse(saved);
+  currentTrx = trx.trx_id;
+
+  document.getElementById("qr").src = trx.qr_image;
+
+  document.getElementById("result").innerHTML = `
+    ♻️ TRANSAKSI AKTIF<br>
+    🆔 ${trx.trx_id}<br>
+    💰 Rp ${trx.amount}<br>
+    ⏳ Menunggu pembayaran...
+  `;
+
+  startCheck();
 };
 
+// 🚀 CREATE QRIS
 async function createQR() {
-  const apikey = document.getElementById("apikey").value;
   const amount = document.getElementById("amount").value;
 
-  if (!apikey || !amount) {
+  if (!amount) {
     document.getElementById("result").innerText =
-      "❌ APIKEY & nominal wajib diisi";
+      "❌ Nominal wajib diisi";
     return;
   }
 
   const session = getSession();
 
-  // 🔥 CEK QR LAMA
+  // 🔥 CEK TRANSAKSI LAMA
   const saved = localStorage.getItem("qris_trx_" + session);
   if (saved) {
     const trx = JSON.parse(saved);
@@ -114,7 +121,7 @@ async function createQR() {
     document.getElementById("qr").src = trx.qr_image;
 
     document.getElementById("result").innerHTML = `
-      ♻️ QRIS SUDAH ADA<br>
+      ♻️ TRANSAKSI SUDAH ADA<br>
       🆔 ${trx.trx_id}
     `;
 
@@ -122,11 +129,12 @@ async function createQR() {
     return;
   }
 
-  document.getElementById("result").innerText = "⏳ Membuat QRIS...";
+  document.getElementById("result").innerText =
+    "⏳ Membuat QRIS...";
 
   try {
     const res = await fetch(
-      `https://yogateway.id/api.php?action=createpayment&apikey=${apikey}&amount=${amount}`
+      `https://yogateway.id/api.php?action=createpayment&apikey=${APIKEY}&amount=${amount}`
     );
 
     const data = await res.json();
@@ -140,7 +148,6 @@ async function createQR() {
     const trx = data.data;
     currentTrx = trx.trx_id;
 
-    // 💾 SIMPAN PER USER
     localStorage.setItem(
       "qris_trx_" + session,
       JSON.stringify({
@@ -155,7 +162,7 @@ async function createQR() {
     document.getElementById("result").innerHTML = `
       🆔 ${trx.trx_id}<br>
       💰 Rp ${amount}<br>
-      🔒 1 USER = 1 QRIS
+      ⏳ Menunggu pembayaran...
     `;
 
     startCheck();
@@ -166,16 +173,16 @@ async function createQR() {
   }
 }
 
+// 🔄 CHECK STATUS
 function startCheck() {
-  const apikey = document.getElementById("apikey").value;
-
   if (intervalCheck) clearInterval(intervalCheck);
 
   intervalCheck = setInterval(async () => {
+
     if (!currentTrx) return;
 
     const res = await fetch(
-      `https://yogateway.id/api.php?action=checkstatus&apikey=${apikey}&trxid=${currentTrx}`
+      `https://yogateway.id/api.php?action=checkstatus&apikey=${APIKEY}&trxid=${currentTrx}`
     );
 
     const data = await res.json();
@@ -184,25 +191,34 @@ function startCheck() {
 
     const status = data.data.status;
 
+    const session = getSession();
+
+    // ✅ SUCCESS
     if (status === "SUCCESS") {
       clearInterval(intervalCheck);
 
-      localStorage.removeItem("qris_trx_" + getSession());
+      localStorage.removeItem("qris_trx_" + session);
+
+      document.getElementById("qr").src = "";
 
       document.getElementById("result").innerHTML =
-        "✅ PEMBAYARAN BERHASIL";
+        "✅ TRANSAKSI BERHASIL";
 
       alert("Pembayaran sukses!");
     }
 
+    // ❌ EXPIRED
     if (status === "EXPIRED") {
       clearInterval(intervalCheck);
 
-      localStorage.removeItem("qris_trx_" + getSession());
+      localStorage.removeItem("qris_trx_" + session);
+
+      document.getElementById("qr").src = "";
 
       document.getElementById("result").innerHTML =
-        "❌ QRIS EXPIRED";
+        "❌ TRANSAKSI EXPIRED";
     }
+
   }, 5000);
 }
 </script>
