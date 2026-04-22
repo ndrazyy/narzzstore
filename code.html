@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>QRIS NDRAZYY PRO</title>
+  <title>QRIS NDRAZYY AUTO</title>
   <style>
     body {
       font-family: Arial;
@@ -20,26 +20,14 @@
       width: 320px;
       text-align: center;
     }
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 6px;
-      border: none;
-    }
-    button {
-      background: #22c55e;
-      color: white;
-      cursor: pointer;
-      font-weight: bold;
-    }
     img {
       margin-top: 15px;
       width: 200px;
+      display: none;
     }
     .result {
       margin-top: 10px;
-      font-size: 12px;
+      font-size: 13px;
       color: #a5f3fc;
       word-break: break-word;
     }
@@ -48,13 +36,12 @@
 <body>
 
 <div class="box">
-  <h3>QRIS AUTO PRO</h3>
+  <h3>QRIS AUTO FIX</h3>
 
-  <input id="amount" type="number" placeholder="Nominal (contoh 1000)">
+  <div id="result" class="result">
+    ⏳ Menunggu transaksi aktif...
+  </div>
 
-  <button onclick="createQR()">Buat QRIS</button>
-
-  <div id="result" class="result">⏳ Mengecek transaksi...</div>
   <img id="qr" />
 </div>
 
@@ -88,7 +75,9 @@ window.onload = () => {
   const trx = JSON.parse(saved);
   currentTrx = trx.trx_id;
 
-  document.getElementById("qr").src = trx.qr_image;
+  const qr = document.getElementById("qr");
+  qr.src = trx.qr_image;
+  qr.style.display = "block";
 
   document.getElementById("result").innerHTML = `
     ♻️ TRANSAKSI AKTIF<br>
@@ -99,79 +88,6 @@ window.onload = () => {
 
   startCheck();
 };
-
-// 🚀 CREATE QRIS
-async function createQR() {
-  const amount = document.getElementById("amount").value;
-
-  if (!amount) {
-    document.getElementById("result").innerText =
-      "❌ Nominal wajib diisi";
-    return;
-  }
-
-  const session = getSession();
-
-  // 🔥 CEK TRANSAKSI LAMA
-  const saved = localStorage.getItem("qris_trx_" + session);
-  if (saved) {
-    const trx = JSON.parse(saved);
-
-    currentTrx = trx.trx_id;
-    document.getElementById("qr").src = trx.qr_image;
-
-    document.getElementById("result").innerHTML = `
-      ♻️ TRANSAKSI SUDAH ADA<br>
-      🆔 ${trx.trx_id}
-    `;
-
-    startCheck();
-    return;
-  }
-
-  document.getElementById("result").innerText =
-    "⏳ Membuat QRIS...";
-
-  try {
-    const res = await fetch(
-      `https://yogateway.id/api.php?action=createpayment&apikey=${APIKEY}&amount=${amount}`
-    );
-
-    const data = await res.json();
-
-    if (!data || data.status !== true) {
-      document.getElementById("result").innerText =
-        "❌ Gagal create QRIS";
-      return;
-    }
-
-    const trx = data.data;
-    currentTrx = trx.trx_id;
-
-    localStorage.setItem(
-      "qris_trx_" + session,
-      JSON.stringify({
-        trx_id: trx.trx_id,
-        qr_image: trx.qr_image,
-        amount: amount
-      })
-    );
-
-    document.getElementById("qr").src = trx.qr_image;
-
-    document.getElementById("result").innerHTML = `
-      🆔 ${trx.trx_id}<br>
-      💰 Rp ${amount}<br>
-      ⏳ Menunggu pembayaran...
-    `;
-
-    startCheck();
-
-  } catch (e) {
-    document.getElementById("result").innerText =
-      "❌ Error: " + e.message;
-  }
-}
 
 // 🔄 CHECK STATUS
 function startCheck() {
@@ -190,7 +106,6 @@ function startCheck() {
     if (!data || !data.data) return;
 
     const status = data.data.status;
-
     const session = getSession();
 
     // ✅ SUCCESS
@@ -199,7 +114,7 @@ function startCheck() {
 
       localStorage.removeItem("qris_trx_" + session);
 
-      document.getElementById("qr").src = "";
+      document.getElementById("qr").style.display = "none";
 
       document.getElementById("result").innerHTML =
         "✅ TRANSAKSI BERHASIL";
@@ -213,7 +128,7 @@ function startCheck() {
 
       localStorage.removeItem("qris_trx_" + session);
 
-      document.getElementById("qr").src = "";
+      document.getElementById("qr").style.display = "none";
 
       document.getElementById("result").innerHTML =
         "❌ TRANSAKSI EXPIRED";
